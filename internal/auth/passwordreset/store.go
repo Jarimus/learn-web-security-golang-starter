@@ -2,15 +2,19 @@ package passwordreset
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/bootdotdev/learn-web-security/internal/database/dbgen"
 )
 
-const tokenTTL = 30 * 24 * time.Hour
+const tokenTTL = 15 * time.Minute
 
 type Token struct {
 	ID        int64
@@ -24,31 +28,37 @@ type Store struct {
 	database *sql.DB
 	queries  *dbgen.Queries
 	now      func() time.Time
+	random   io.Reader
 }
 
 func NewStore(database *sql.DB) *Store {
-	return &Store{database: database, queries: dbgen.New(database), now: time.Now}
+	return &Store{database: database, queries: dbgen.New(database), now: time.Now, random: rand.Reader}
 }
 
 func (store *Store) Create(ctx context.Context, userID int64) (Token, error) {
 	now := store.now().UTC()
-	value := fmt.Sprintf("reset-%d-%d", userID, now.UnixNano())
+	tokenBytes := make([]byte, 32)
+	byteCount, err := io.ReadFull(store.random, tokenBytes)
+	if err != nil || byteCount != 32 {
+		return Token{}, fmt.Errorf("generate 32 random bytes: %w", err)
+	}
+	valueHex := hex.EncodeToString(tokenBytes)
 	expiresAt := now.Add(tokenTTL)
 	if err := store.queries.CreatePasswordResetToken(ctx, dbgen.CreatePasswordResetTokenParams{
 		UserID:    userID,
-		TokenHash: hashToken(value),
+		TokenHash: hashToken(valueHex),
 		ExpiresAt: formatTimestamp(expiresAt),
 	}); err != nil {
 		return Token{}, fmt.Errorf("create password reset token: %w", err)
 	}
-	token, found, err := store.Validate(ctx, value)
+	token, found, err := store.Validate(ctx, valueHex)
 	if err != nil {
 		return Token{}, err
 	}
 	if !found {
 		return Token{}, errors.New("created password reset token was not found")
 	}
-	token.Value = value
+	token.Value = valueHex
 	return token, nil
 }
 
@@ -119,7 +129,8 @@ func (store *Store) ResetPassword(ctx context.Context, value, passwordHash strin
 }
 
 func hashToken(value string) string {
-	return value
+	hash := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(hash[:])
 }
 
 func formatTimestamp(timestamp time.Time) string {
