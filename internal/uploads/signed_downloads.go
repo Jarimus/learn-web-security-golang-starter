@@ -18,16 +18,13 @@ func CreateSignedDownloadPath(signingKey [32]byte, fileID int64, now time.Time) 
 	return fmt.Sprintf("/files/%d/signed-download?expires=%d&signature=%s", fileID, expires, signature)
 }
 
-func VerifySignedDownload(signingKey [32]byte, fileID int64, expiresValue, signature string, now time.Time) bool {
-	// if expiresValue == "" || strings.Trim(expiresValue, "0123456789") != "" || len(signature) != 64 {
-	// 	return false
-	// }
+func VerifySignedDownload(signingKey [32]byte, fileID int64, expiresValue, providedSignature string, now time.Time) bool {
 	expires, err := strconv.ParseInt(expiresValue, 10, 64)
 	if err != nil {
 		return false
 	}
-	providedSignature := createSignature(signingKey, fileID, expires)
-	if expires <= now.Unix() || subtle.ConstantTimeCompare([]byte(signature), []byte(providedSignature)) != 1 {
+	expectedSignature := createSignature(signingKey, fileID, expires)
+	if expires <= now.Unix() || subtle.ConstantTimeCompare([]byte(expectedSignature), []byte(providedSignature)) != 1 {
 		return false
 	}
 	return true
