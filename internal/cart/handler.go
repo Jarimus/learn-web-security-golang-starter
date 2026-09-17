@@ -1,8 +1,8 @@
 package cart
 
 import (
-	"math"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"github.com/bootdotdev/learn-web-security/internal/accounts"
@@ -187,10 +187,13 @@ func makeItemViews(items []Item) []itemView {
 }
 
 func parseQuantity(value string, minimum int64) (int64, bool) {
-	parsed, err := strconv.ParseFloat(value, 64)
-	if err != nil || math.IsNaN(parsed) || math.IsInf(parsed, 0) || parsed != math.Trunc(parsed) {
+	quantityPattern := regexp.MustCompile(`0|(^[0-9]{1,2}$)`)
+	if !quantityPattern.MatchString(value) {
 		return 0, false
 	}
-	quantity := int64(parsed)
+	quantity, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, false
+	}
 	return quantity, quantity >= minimum && quantity <= MaximumQuantity
 }

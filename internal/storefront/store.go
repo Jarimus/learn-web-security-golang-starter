@@ -50,15 +50,6 @@ func (store *Store) ListProducts(ctx context.Context, maxResults int64) ([]Produ
 }
 
 func (store *Store) SearchProducts(ctx context.Context, query string, maxResults int64) ([]Product, error) {
-	// searchSQL := `SELECT id, name, description, image_path, price_cents, cost_cents, inventory_count, is_active, created_at
-	// 	FROM products
-	// 	WHERE is_active = 1 AND (name LIKE '%` + query + `%' OR description LIKE '%` + query + `%')
-	// 	ORDER BY id
-	// 	LIMIT ` + strconv.FormatInt(maxResults, 10)
-	// rows, err := store.database.QueryContext(ctx, searchSQL)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("search products: %w", err)
-	// }
 	products, err := store.queries.SearchActiveProducts(ctx, dbgen.SearchActiveProductsParams{
 		Pattern:    "%" + query + "%",
 		MaxResults: maxResults,
@@ -66,21 +57,7 @@ func (store *Store) SearchProducts(ctx context.Context, query string, maxResults
 	if err != nil {
 		return []Product{}, err
 	}
-	var result []Product
-	for _, product := range products {
-		result = append(result, Product{
-			ID:             product.ID,
-			Name:           product.Name,
-			Description:    product.Description,
-			ImagePath:      product.ImagePath,
-			PriceCents:     product.PriceCents,
-			CostCents:      product.CostCents,
-			InventoryCount: product.InventoryCount,
-			IsActive:       product.IsActive == 1,
-			CreatedAt:      product.CreatedAt,
-		})
-	}
-	return result, nil
+	return mapProducts(products), nil
 }
 
 func (store *Store) ListAllProducts(ctx context.Context) ([]Product, error) {
