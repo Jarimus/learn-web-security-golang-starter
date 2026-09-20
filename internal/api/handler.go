@@ -18,10 +18,25 @@ type integrationOrderResponse struct {
 	CreatedAt  string `json:"created_at"`
 }
 
+type orderResponse struct {
+	ProductID  int64  `json:"id"`
+	Status     string `json:"status"`
+	TotalCents int64  `json:"total_cents"`
+	CreatedAt  string `json:"created_at"`
+}
+
 type orderItemResponse struct {
 	ProductID   int64  `json:"product_id"`
 	ProductName string `json:"product_name"`
 	Quantity    int64  `json:"quantity"`
+	PriceCents  int64  `json:"price_cents"`
+}
+
+type productResponse struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ImagePath   string `json:"image_path"`
 	PriceCents  int64  `json:"price_cents"`
 }
 
@@ -51,7 +66,11 @@ func (handler *Handler) AccountOrders(responseWriter http.ResponseWriter, reques
 		handler.internalError(responseWriter, request, err)
 		return
 	}
-	httpx.RespondWithJSON(responseWriter, http.StatusOK, map[string]any{"orders": orders})
+	var ordersResponse []orderResponse
+	for _, order := range orders {
+		ordersResponse = append(ordersResponse, toOrderResponse(order))
+	}
+	httpx.RespondWithJSON(responseWriter, http.StatusOK, map[string][]orderResponse{"orders": ordersResponse})
 }
 
 func (handler *Handler) Order(responseWriter http.ResponseWriter, request *http.Request) {
@@ -82,23 +101,36 @@ func (handler *Handler) Order(responseWriter http.ResponseWriter, request *http.
 	for _, item := range items {
 		itemResponses = append(itemResponses, orderItemResponse{ProductID: item.ProductID, ProductName: item.ProductName, Quantity: item.Quantity, PriceCents: item.PriceCents})
 	}
-	httpx.RespondWithJSON(responseWriter, http.StatusOK, map[string]any{"order": order, "items": itemResponses})
+	httpx.RespondWithJSON(responseWriter, http.StatusOK, map[string]any{"order": toOrderResponse(order), "items": itemResponses})
 }
 
 func (handler *Handler) Products(responseWriter http.ResponseWriter, request *http.Request) {
-	products, err := handler.productStore.ListAllProducts(request.Context())
+	products, err := handler.productStore.ListProducts(request.Context(), handler.maxProductResults)
+	var productsResponse []productResponse
+	for _, product := range products {
+		if !product.IsActive {
+			continue
+		}
+		productsResponse = append(productsResponse, productResponse{
+			ID:          product.ID,
+			Name:        product.Name,
+			Description: product.Description,
+			ImagePath:   product.ImagePath,
+			PriceCents:  product.PriceCents,
+		})
+	}
 	if err != nil {
 		handler.internalError(responseWriter, request, err)
 		return
 	}
 	responseWriter.Header().Set("Access-Control-Allow-Origin", "*")
-	httpx.RespondWithJSON(responseWriter, http.StatusOK, map[string]any{"products": products})
+	httpx.RespondWithJSON(responseWriter, http.StatusOK, map[string][]productResponse{"products": productsResponse})
 }
 
 func (handler *Handler) ProductsOptions(responseWriter http.ResponseWriter, request *http.Request) {
 	responseWriter.Header().Set("Access-Control-Allow-Origin", "*")
-	responseWriter.Header().Set("Access-Control-Allow-Methods", "GET")
-	httpx.RespondWithJSON(responseWriter, http.StatusNoContent, "")
+	responseWriter.Header().Set("Access-Control-Allow-Methods", http.MethodGet)
+	responseWriter.WriteHeader(http.StatusNoContent)
 }
 
 func (handler *Handler) WarehouseOrders(responseWriter http.ResponseWriter, request *http.Request) {
@@ -120,11 +152,9 @@ func (handler *Handler) WarehouseOrders(responseWriter http.ResponseWriter, requ
 		handler.internalError(responseWriter, request, err)
 		return
 	}
-	responses := make([]integrationOrderResponse, 0, len(orders))
+	responses := make([]orderResponse, 0, len(orders))
 	for _, order := range orders {
-		responses = append(responses, integrationOrderResponse{
-			ID: order.ID, Status: order.Status, TotalCents: order.TotalCents, CreatedAt: order.CreatedAt,
-		})
+		responses = append(responses, toOrderResponse(order))
 	}
 	httpx.RespondWithJSON(responseWriter, http.StatusOK, map[string]any{
 		"integration": "Warehouse Fulfillment Integration",
@@ -148,4 +178,8 @@ func (handler *Handler) requireAuthentication(responseWriter http.ResponseWriter
 func (handler *Handler) internalError(responseWriter http.ResponseWriter, request *http.Request, err error) {
 	_ = handler.logger.Event("unhandled_error", map[string]any{"method": request.Method, "path": request.URL.Path, "message": err.Error()})
 	httpx.RespondWithError(responseWriter, http.StatusInternalServerError, err.Error())
+}
+
+func toOrderResponse(order orders.Order) orderResponse {
+	return orderResponse{ProductID: order.ID, Status: order.Status, TotalCents: order.TotalCents, CreatedAt: order.CreatedAt}
 }
