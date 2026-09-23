@@ -50,6 +50,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer appLogger.Close()
+
 	application, err := httpserver.New(databaseConnection, appLogger, httpserver.Options{
 		AppOrigin:               appConfig.AppOrigin,
 		MaxPublicProductResults: appConfig.MaxPublicProductResults,
@@ -57,10 +58,12 @@ func run(ctx context.Context) error {
 		MaxUploadBytes:          appConfig.MaxUploadBytes,
 		PawPalAPIKey:            appConfig.PawPalAPIKey,
 		AcornFulfillmentDelay:   appConfig.AcornFulfillmentDelay,
+		DownloadSigningKey:      appConfig.DownloadSigningKey,
 		DataDirectory:           filepath.Join(workingDirectory, "data"),
 		FixtureDirectory:        filepath.Join(workingDirectory, "data", "fixtures"),
 		TemplateDirectory:       filepath.Join(workingDirectory, "web", "templates"),
 		PublicDirectory:         filepath.Join(workingDirectory, "web", "public"),
+		TrustedProxyHops:        appConfig.TrustedProxyHops,
 	})
 	if err != nil {
 		return err
