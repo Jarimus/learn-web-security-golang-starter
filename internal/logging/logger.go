@@ -17,12 +17,19 @@ type Logger struct {
 }
 
 var sensitiveFields = map[string]struct{}{
-	"adminNotes":  {},
-	"sessionId":   {},
-	"resetToken":  {},
-	"resetLink":   {},
-	"secret":      {},
-	"storagePath": {},
+	"adminNotes":         {},
+	"sessionId":          {},
+	"resetToken":         {},
+	"resetLink":          {},
+	"secret":             {},
+	"storagePath":        {},
+	"email":              {},
+	"shippingName":       {},
+	"shippingAddress":    {},
+	"shippingCity":       {},
+	"shippingRegion":     {},
+	"shippingPostalCode": {},
+	"originalName":       {},
 }
 
 func Open(filePath string) (*Logger, error) {
