@@ -16,6 +16,7 @@ import (
 	"github.com/bootdotdev/learn-web-security/internal/database"
 	"github.com/bootdotdev/learn-web-security/internal/httpserver"
 	"github.com/bootdotdev/learn-web-security/internal/logging"
+	"github.com/bootdotdev/learn-web-security/internal/storage"
 )
 
 func main() {
@@ -51,6 +52,11 @@ func run(ctx context.Context) error {
 	}
 	defer appLogger.Close()
 
+	keyRing, err := storage.NewKeyring(appConfig.ActiveEncryptionKeyVersion, appConfig.EncryptionKeys)
+	if err != nil {
+		return err
+	}
+
 	application, err := httpserver.New(databaseConnection, appLogger, httpserver.Options{
 		AppOrigin:               appConfig.AppOrigin,
 		MaxPublicProductResults: appConfig.MaxPublicProductResults,
@@ -64,6 +70,7 @@ func run(ctx context.Context) error {
 		TemplateDirectory:       filepath.Join(workingDirectory, "web", "templates"),
 		PublicDirectory:         filepath.Join(workingDirectory, "web", "public"),
 		TrustedProxyHops:        appConfig.TrustedProxyHops,
+		EncryptionKeyring:       keyRing,
 	})
 	if err != nil {
 		return err

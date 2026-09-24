@@ -111,6 +111,18 @@ func (handler *authHandler) Login(responseWriter http.ResponseWriter, request *h
 		return
 	}
 
+	if passwords.NeedsRehash(user.PasswordHash) {
+		newPasswordHash, err := passwords.Hash(password)
+		if err != nil {
+			handler.internalError(responseWriter, request, err)
+			return
+		}
+		err = handler.accounts.UpdatePasswordHash(request.Context(), user.ID, newPasswordHash)
+		if err != nil {
+			handler.internalError(responseWriter, request, err)
+		}
+	}
+
 	session, err := handler.accounts.CreateSession(request.Context(), user.ID)
 	if err != nil {
 		handler.internalError(responseWriter, request, err)
