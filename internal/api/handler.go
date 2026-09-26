@@ -127,7 +127,7 @@ func (handler *Handler) Products(responseWriter http.ResponseWriter, request *ht
 	httpx.RespondWithJSON(responseWriter, http.StatusOK, map[string][]productResponse{"products": productsResponse})
 }
 
-func (handler *Handler) ProductsOptions(responseWriter http.ResponseWriter, request *http.Request) {
+func (handler *Handler) ProductPreflight(responseWriter http.ResponseWriter, request *http.Request) {
 	responseWriter.Header().Set("Access-Control-Allow-Origin", "*")
 	responseWriter.Header().Set("Access-Control-Allow-Methods", http.MethodGet)
 	responseWriter.WriteHeader(http.StatusNoContent)
