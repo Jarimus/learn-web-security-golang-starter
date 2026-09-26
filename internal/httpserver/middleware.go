@@ -145,7 +145,8 @@ func LoadShedder(maxConcurrent, retryAfterSeconds int) func(http.Handler) http.H
 				next.ServeHTTP(responseWriter, request)
 			default:
 				responseWriter.Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds))
-				httpx.RespondWithError(responseWriter, http.StatusServiceUnavailable, "Service is at capacity")
+				httpx.RespondWithJSON(responseWriter, http.StatusServiceUnavailable, map[string]string{"error": "Service is at capacity"})
+				return
 			}
 		})
 	}
